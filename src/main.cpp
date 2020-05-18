@@ -11,6 +11,8 @@
 #include <wificonfig.h>
 #include <PubSubClient.h>
 
+#define MQTT_NODENAME "/device/atom-lite-1"
+
 // #include <DNSServer.h>
 // #include <WebServer.h>
 // #include <WiFiManager.h> //https://github.com/tzapu/WiFiManager
@@ -110,15 +112,28 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
   //   }
 }
 
-void subscribe(char *root, char *subtopic)
+char topic[40];
+
+char *getTopic(char *root, char *subtopic)
 {
-  char topic[40];
   strcpy(topic, root);
   strcat(topic, "/");
   strcat(topic, subtopic);
+  return &topic[0];
+}
 
+void subscribe(char *root, char *subtopic)
+{
+  char *topic = getTopic(root, subtopic);
   mqttclient.subscribe(topic);
   DEBUGVAL(topic);
+}
+
+void publish(char *root, char *subtopic, char *payload)
+{
+  char *topic = getTopic(root, subtopic);
+  mqttclient.publish(topic, payload);
+  DEBUGVAL(topic, payload);
 }
 
 void connectToMqtt()
@@ -129,8 +144,6 @@ void connectToMqtt()
   int attempts = 0;
   while (!mqttclient.connected())
   {
-#define MQTT_NODENAME "/device/atom-lite-1"
-
     // Attempt to connect
     mqttclient.connect(MQTT_NODENAME, "skelstar", pass);
     if (attempts++ > 5)
@@ -141,12 +154,9 @@ void connectToMqtt()
   }
 
   subscribe(MQTT_NODENAME, "test");
+  publish(MQTT_NODENAME, "online", "online");
 
-  // mqttclient.subscribe(TOPIC_LED_COMMAND);
-  // mqttclient.subscribe(TOPIC_TIMESTAMP_10S);
   Serial.printf("Connected to MQTT! \n");
-
-  // mqttPublish(TOPIC_ONLINE, "ONLINE");
 
   Serial.printf("ip: %s \n", WiFi.localIP());
 }
