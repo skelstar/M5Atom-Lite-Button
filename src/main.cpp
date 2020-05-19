@@ -7,11 +7,11 @@
 #include <Arduino.h>
 #include <elapsedMillis.h>
 
-#include <WiFi.h>
-#include <wificonfig.h>
-#include <PubSubClient.h>
-
 #define MQTT_NODENAME "/device/atom-lite-1"
+
+#include <WiFiLib.h>
+
+WiFiLib wifi;
 
 // #include <DNSServer.h>
 // #include <WebServer.h>
@@ -40,126 +40,61 @@ void setLed(CRGB colour)
 }
 //---------------------------------------------------------------
 
-WiFiClient client;
-PubSubClient mqttclient(client);
+// void mqttCallback(char *topic, byte *payload, unsigned int length)
+// {
+//   payload[length] = '\0';
 
-void connectToWifi()
-{
-  int status = 0;
+//   char *command;
+//   char *p = (char *)payload;
 
-  while (status != WL_CONNECTED)
-  {
-    Serial.printf("Attempting to connect to WPA SSID: %s\n", ssid);
-    // Connect to WPA/WPA2 network:
-    status = WiFi.begin(ssid, pass);
-    // wait 10 seconds for connection:
-    if (status != WL_CONNECTED)
-    {
-      delay(3000);
-    }
-    else
-    {
-      DEBUG("Connected to wifi!");
-    }
-  }
-}
+//   if (strcmp(topic, "/device/atom-lite-1/test") == 0)
+//   {
+//     DEBUGVAL(topic, (char *)payload);
+//   }
+//   //   if (strcmp(topic, TOPIC_LED_COMMAND) == 0)
+//   //   {
+//   //     while ((command = strtok_r(p, "$", &p)) != NULL)
+//   //     {
+//   //       if (strcmp(command, "LED") == 0)
+//   //       {
+//   //         char *colour = strtok_r(p, "$", &p);
+//   //         if (strcmp(colour, "RED") == 0)
+//   //         {
+//   //           fireButtonLed[0] = CRGB::Red;
+//   //         }
+//   //         else if (strcmp(colour, "GREEN") == 0)
+//   //         {
+//   //           fireButtonLed[0] = CRGB::Green;
+//   //         }
+//   //         else if (strcmp(colour, "BLUE") == 0)
+//   //         {
+//   //           fireButtonLed[0] = CRGB::Blue;
+//   //         }
+//   //         else if (strcmp(colour, "OFF") == 0)
+//   //         {
+//   //           fireButtonLed[0] = CRGB::Black;
+//   //         }
+//   //         FastLED.show();
+//   //       }
+//   //       else
+//   //       {
+//   //         Serial.printf("command?: %s \n", command);
+//   //       }
+//   //     }
+//   //   }
+//   //   else if (strcmp(topic, TOPIC_TIMESTAMP_10S) == 0)
+//   //   {
+//   //     sinceHeardFromMqtt = 0;
+//   //   }
+// }
 
-void mqttCallback(char *topic, byte *payload, unsigned int length)
-{
-  payload[length] = '\0';
+//   subscribe(MQTT_NODENAME, "test");
+//   publish(MQTT_NODENAME, "online", "online");
 
-  char *command;
-  char *p = (char *)payload;
+//   Serial.printf("Connected to MQTT! \n");
 
-  if (strcmp(topic, "/device/atom-lite-1/test") == 0)
-  {
-    DEBUGVAL(topic, (char *)payload);
-  }
-  //   if (strcmp(topic, TOPIC_LED_COMMAND) == 0)
-  //   {
-  //     while ((command = strtok_r(p, "$", &p)) != NULL)
-  //     {
-  //       if (strcmp(command, "LED") == 0)
-  //       {
-  //         char *colour = strtok_r(p, "$", &p);
-  //         if (strcmp(colour, "RED") == 0)
-  //         {
-  //           fireButtonLed[0] = CRGB::Red;
-  //         }
-  //         else if (strcmp(colour, "GREEN") == 0)
-  //         {
-  //           fireButtonLed[0] = CRGB::Green;
-  //         }
-  //         else if (strcmp(colour, "BLUE") == 0)
-  //         {
-  //           fireButtonLed[0] = CRGB::Blue;
-  //         }
-  //         else if (strcmp(colour, "OFF") == 0)
-  //         {
-  //           fireButtonLed[0] = CRGB::Black;
-  //         }
-  //         FastLED.show();
-  //       }
-  //       else
-  //       {
-  //         Serial.printf("command?: %s \n", command);
-  //       }
-  //     }
-  //   }
-  //   else if (strcmp(topic, TOPIC_TIMESTAMP_10S) == 0)
-  //   {
-  //     sinceHeardFromMqtt = 0;
-  //   }
-}
-
-char topic[40];
-
-char *getTopic(char *root, char *subtopic)
-{
-  strcpy(topic, root);
-  strcat(topic, "/");
-  strcat(topic, subtopic);
-  return &topic[0];
-}
-
-void subscribe(char *root, char *subtopic)
-{
-  char *topic = getTopic(root, subtopic);
-  mqttclient.subscribe(topic);
-  DEBUGVAL(topic);
-}
-
-void publish(char *root, char *subtopic, char *payload)
-{
-  char *topic = getTopic(root, subtopic);
-  mqttclient.publish(topic, payload);
-  DEBUGVAL(topic, payload);
-}
-
-void connectToMqtt()
-{
-  DEBUG("Connecting to MQTT...");
-  mqttclient.setServer("192.168.1.105", 1883);
-  mqttclient.setCallback(mqttCallback);
-  int attempts = 0;
-  while (!mqttclient.connected())
-  {
-    // Attempt to connect
-    mqttclient.connect(MQTT_NODENAME, "skelstar", pass);
-    if (attempts++ > 5)
-    {
-      Serial.printf("Couldn't connect to MQTT!\n");
-      delay(1000);
-    }
-  }
-
-  subscribe(MQTT_NODENAME, "test");
-  publish(MQTT_NODENAME, "online", "online");
-
-  Serial.printf("Connected to MQTT! \n");
-
-  Serial.printf("ip: %s \n", WiFi.localIP());
-}
+//   Serial.printf("ip: %s \n", WiFi.localIP());
+// }
 
 //---------------------------------------------------------------
 
@@ -168,8 +103,11 @@ void setup()
   Serial.begin(115200);
   DEBUG("Ready");
 
-  connectToWifi();
-  connectToMqtt();
+  wifi.connectToWifi(ssid, pass);
+  wifi.connectToMqtt();
+
+  wifi.subscribe(MQTT_NODENAME, "test");
+  wifi.publish(MQTT_NODENAME, "online", "online");
 
   // WiFiManager wifiManager;
   // //wifiManager.resetSettings();
@@ -186,12 +124,15 @@ void setup()
 
   // button.setReleasedHandler(toggleMic);
   button.setDoubleClickHandler([](Button2 &btn) {
+    wifi.publish(MQTT_NODENAME, "button", "doubleclick");
     DEBUG("double click");
   });
   button.setTapHandler([](Button2 &btn) {
+    wifi.publish(MQTT_NODENAME, "button", "tap");
     DEBUG("tap");
   });
   button.setLongClickHandler([](Button2 &btn) {
+    wifi.publish(MQTT_NODENAME, "button", "longclick");
     DEBUG("long click");
   });
 
@@ -205,5 +146,5 @@ void loop()
 {
   button.loop();
 
-  mqttclient.loop();
+  wifi.loop();
 }
