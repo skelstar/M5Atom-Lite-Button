@@ -25,19 +25,18 @@ WiFiLib wifi;
 
 CRGB leds[NUM_LEDS];
 
-//---------------------------------------------------------------
-#define DOUBLECLICK_MS 300
-#define LONGCLICK_MS 1000
-
-#include <Button2.h>
-
-Button2 button(39);
-
 void setLed(CRGB colour)
 {
   leds[0] = colour;
   FastLED.show();
 }
+
+//---------------------------------------------------------------
+
+#include <Button2.h>
+
+Button2 button(39);
+
 //---------------------------------------------------------------
 
 // void mqttCallback(char *topic, byte *payload, unsigned int length)
@@ -98,6 +97,27 @@ void setLed(CRGB colour)
 
 //---------------------------------------------------------------
 
+char *parseClickType(int type)
+{
+
+  switch (type)
+  {
+  case SINGLE_CLICK:
+    return ("SINGLE_CLICK");
+  case DOUBLE_CLICK:
+    return ("DOUBLE_CLICK");
+  case TRIPLE_CLICK:
+    return ("TRIPLE_CLICK");
+  case LONG_CLICK:
+    return ("LONG_CLICK");
+  default:
+    return ("unable to parse type");
+  }
+}
+
+elapsedMillis sinceLastRelease;
+bool bumped = false;
+
 void setup()
 {
   Serial.begin(115200);
@@ -123,17 +143,26 @@ void setup()
   // Serial.println("connected...yeey :)");
 
   // button.setReleasedHandler(toggleMic);
+
   button.setDoubleClickHandler([](Button2 &btn) {
     wifi.publish(MQTT_NODENAME, "button", "doubleclick");
-    DEBUG("double click");
+    DEBUG("--- double click");
   });
-  button.setTapHandler([](Button2 &btn) {
-    wifi.publish(MQTT_NODENAME, "button", "tap");
-    DEBUG("tap");
+  button.setTripleClickHandler([](Button2 &btn) {
+    wifi.publish(MQTT_NODENAME, "button", "tripleclick");
+    DEBUG("--- triple click!!!");
   });
   button.setLongClickHandler([](Button2 &btn) {
     wifi.publish(MQTT_NODENAME, "button", "longclick");
-    DEBUG("long click");
+    DEBUG("--- long click");
+  });
+  button.setClickHandler([](Button2 &btn) {
+    wifi.publish(MQTT_NODENAME, "button", "click");
+    DEBUG("--- click");
+  });
+  button.setReleasedHandler([](Button2 &btn) {
+    sinceLastRelease = 0;
+    bumped = false;
   });
 
   FastLED.addLeds<NEOPIXEL, LED_PIN>(leds, NUM_LEDS);
@@ -145,6 +174,12 @@ void setup()
 void loop()
 {
   button.loop();
+
+  if (sinceLastRelease > 1500 && !bumped)
+  {
+    bumped = true;
+    DEBUG("\n\n\n");
+  }
 
   wifi.loop();
 }
