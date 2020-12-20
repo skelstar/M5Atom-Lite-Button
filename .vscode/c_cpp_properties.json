@@ -222,6 +222,7 @@
                 "PLATFORMIO=50004",
                 "ARDUINO_ESP32_PICO",
                 "DEBUG_SERIAL",
+                "SOFTSPI",
                 "SOFT_SPI_MISO_PIN=23",
                 "SOFT_SPI_MOSI_PIN=19",
                 "SOFT_SPI_SCK_PIN=22",
