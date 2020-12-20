@@ -1,85 +1,39 @@
 #ifdef DEBUG_SERIAL
 #define DEBUG_OUT Serial
 #endif
-#define PRINTSTREAM_FALLBACK
-#include "Debug.hpp"
 
 #include <Arduino.h>
 #include <elapsedMillis.h>
-
-#define MQTT_NODENAME "/device/atom-lite-2"
-
-#include <WiFiLib.h>
-
-WiFiLib wifi;
-
-// #include <DNSServer.h>
-// #include <WebServer.h>
-// #include <WiFiManager.h> //https://github.com/tzapu/WiFiManager
-
-//---------------------------------------------------------------
-#include <FastLED.h>
-
-#define NUM_LEDS 1
-#define LED_PIN 27
-
-CRGB leds[NUM_LEDS];
-
-void setLed(CRGB colour)
-{
-  leds[0] = colour;
-  FastLED.show();
-}
-
-//---------------------------------------------------------------
-
 #include <Button2.h>
+
+//---------------------------------------------------------------
+
+#include <RF24Network.h>
+#include <NRF24L01Lib.h>
+
+NRF24L01Lib nrf24;
+
+RF24 radio(SPI_CE, SPI_CS);
+RF24Network network(radio);
+
+//---------------------------------------------------------------
+
+void clickHandler(Button2 &btn)
+{
+}
 
 Button2 button(39);
 
 //---------------------------------------------------------------
 
-char *parseClickType(int type)
+void packetAvailable_cb(uint16_t from_id, uint8_t t)
 {
+  Serial.printf("Rx packet from %d!\n", from_id);
 
-  switch (type)
-  {
-  case SINGLE_CLICK:
-    return ("SINGLE_CLICK");
-  case DOUBLE_CLICK:
-    return ("DOUBLE_CLICK");
-  case TRIPLE_CLICK:
-    return ("TRIPLE_CLICK");
-  case LONG_CLICK:
-    return ("LONG_CLICK");
-  default:
-    return ("unable to parse type");
-  }
-}
-
-//---------------------------------------------------------------
-
-elapsedMillis sinceLastRelease;
-bool bumped = false;
-
-void setButtonCallbacks()
-{
-  button.setDoubleClickHandler([](Button2 &btn) {
-    wifi.publish(MQTT_NODENAME, "button", "doubleclick");
-  });
-  button.setTripleClickHandler([](Button2 &btn) {
-    wifi.publish(MQTT_NODENAME, "button", "tripleclick");
-  });
-  button.setLongClickHandler([](Button2 &btn) {
-    wifi.publish(MQTT_NODENAME, "button", "longclick");
-  });
-  button.setClickHandler([](Button2 &btn) {
-    wifi.publish(MQTT_NODENAME, "button", "click");
-  });
-  button.setReleasedHandler([](Button2 &btn) {
-    sinceLastRelease = 0;
-    bumped = false;
-  });
+  RF24NetworkHeader header;
+  uint8_t len = sizeof(uint16_t);
+  uint8_t buff[len];
+  network.read(header, buff, len);
 }
 
 //---------------------------------------------------------------
@@ -87,26 +41,13 @@ void setButtonCallbacks()
 void setup()
 {
   Serial.begin(115200);
-  DEBUG("Ready");
+  Serial.printf("\n\nReady\n");
 
-  FastLED.addLeds<NEOPIXEL, LED_PIN>(leds, NUM_LEDS);
-  FastLED.setBrightness(30);
-  setLed(CRGB::Blue);
-
-  wifi.connectToWifi(ssid, pass);
-  wifi.connectToMqtt();
-
-  setLed(CRGB::Green);
-
-  wifi.subscribe(MQTT_NODENAME, "test");
-  wifi.publish(MQTT_NODENAME, "online", "online");
-
-  setButtonCallbacks();
+  nrf24.begin(&radio, &network, 02, packetAvailable_cb);
 }
 
 void loop()
 {
-  button.loop();
-
-  wifi.loop();
+  nrf24.update();
+  vTaskDelay(10);
 }
